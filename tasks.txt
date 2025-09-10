@@ -1,0 +1,22 @@
+*   Your Mission: Find and Fix Security Holes
+    *   [ ] Find Problems: Look through the code for anything that seems weak or could be misused.
+    *   [ ] Understand the Risk: For each problem, figure out what a bad actor could do with it (e.g., steal data, break the app).
+    *   [ ] Fix It: Patch the security holes. Make sure the app still works for regular users after your fix.
+
+*   Phase 1: Get the App Running
+    *   [ ] Check Your Tools: Make sure you have Node.js and a Supabase account.
+    *   [ ] Install the App:
+        *   `git clone <repository-url>`
+        *   `cd alx-polly`
+        *   `npm install`
+    *   [ ] Set Up Keys: Create a `.env.local` file and add your Supabase keys.
+    *   [ ] Start the App: Run `npm run dev` and open `http://localhost:3000`.
+
+*   Phase 2: Start Your Security Hunt
+    *   [ ] Read the Code:
+        *   Start with the `app/lib/actions/` folder to see how the app uses the database.
+        *   Check the `app/(dashboard)/` folder to see how user pages work.
+    *   [ ] Use Your AI Assistant:
+        *   Ask me to review small pieces of code for security issues.
+        *   Describe a feature and ask me to find possible ways to attack it.
+        *   Once you find a problem, ask me for the best way to fix it.

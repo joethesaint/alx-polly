@@ -31,7 +31,7 @@ export default function EditPollForm({ poll }: { poll: any }) {
         formData.set('question', question);
         formData.delete('options');
         options.forEach((opt) => formData.append('options', opt));
-        const res = await updatePoll(poll.id, formData);
+        const res = await updatePoll(poll.id, question, options);
         if (res?.error) {
           setError(res.error);
         } else {

@@ -6,35 +6,69 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { register } from '@/app/lib/actions/auth-actions';
+import PasswordStrengthIndicator from '@/app/components/PasswordStrengthIndicator';
+import { AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
+    
     const formData = new FormData(event.currentTarget);
     const name = formData.get('name') as string;
     const email = formData.get('email') as string;
-    const password = formData.get('password') as string;
-    const confirmPassword = formData.get('confirmPassword') as string;
 
     if (password !== confirmPassword) {
       setError('Passwords do not match');
+      setPasswordMismatch(true);
       setLoading(false);
       return;
     }
 
+    setPasswordMismatch(false);
     const result = await register({ name, email, password });
 
     if (result?.error) {
       setError(result.error);
       setLoading(false);
     } else {
-      window.location.href = '/polls'; // Full reload to pick up session
+      setSuccess('Account created successfully! Please check your email to verify your account.');
+      setLoading(false);
+      // Redirect after a short delay to show success message
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
+    }
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    if (confirmPassword && newPassword !== confirmPassword) {
+      setPasswordMismatch(true);
+    } else {
+      setPasswordMismatch(false);
+    }
+  };
+
+  const handleConfirmPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newConfirmPassword = e.target.value;
+    setConfirmPassword(newConfirmPassword);
+    if (password && password !== newConfirmPassword) {
+      setPasswordMismatch(true);
+    } else {
+      setPasswordMismatch(false);
     }
   };
 
@@ -46,6 +80,24 @@ export default function RegisterPage() {
           <CardDescription className="text-center">Sign up to start creating and sharing polls</CardDescription>
         </CardHeader>
         <CardContent>
+          {success && (
+            <Alert className="mb-4 border-green-200 bg-green-50">
+              <CheckCircle className="h-4 w-4 text-green-600" />
+              <AlertDescription className="text-green-700">
+                {success}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {error && (
+            <Alert className="mb-4 border-red-200 bg-red-50">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-700">
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name</Label>
@@ -55,6 +107,7 @@ export default function RegisterPage() {
                 type="text" 
                 placeholder="John Doe" 
                 required
+                disabled={loading}
               />
             </div>
             <div className="space-y-2">
@@ -66,6 +119,7 @@ export default function RegisterPage() {
                 placeholder="your@email.com" 
                 required
                 autoComplete="email"
+                disabled={loading}
               />
             </div>
             <div className="space-y-2">
@@ -74,9 +128,19 @@ export default function RegisterPage() {
                 id="password" 
                 name="password"
                 type="password" 
+                value={password}
+                onChange={handlePasswordChange}
                 required
                 autoComplete="new-password"
+                disabled={loading}
+                className={password && password.length > 0 ? 'mb-2' : ''}
               />
+              {password && (
+                <PasswordStrengthIndicator 
+                  password={password} 
+                  className="mt-2"
+                />
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="confirmPassword">Confirm Password</Label>
@@ -84,13 +148,23 @@ export default function RegisterPage() {
                 id="confirmPassword" 
                 name="confirmPassword"
                 type="password" 
+                value={confirmPassword}
+                onChange={handleConfirmPasswordChange}
                 required
                 autoComplete="new-password"
+                disabled={loading}
+                className={passwordMismatch ? 'border-red-500 focus:border-red-500' : ''}
               />
+              {passwordMismatch && confirmPassword && (
+                <p className="text-red-500 text-sm mt-1">Passwords do not match</p>
+              )}
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Registering...' : 'Register'}
+            <Button 
+              type="submit" 
+              className="w-full" 
+              disabled={loading || passwordMismatch || !password || !confirmPassword}
+            >
+              {loading ? 'Creating Account...' : 'Create Account'}
             </Button>
           </form>
         </CardContent>

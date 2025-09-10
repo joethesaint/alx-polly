@@ -43,6 +43,10 @@ export default function PollCreateForm() {
         <Label htmlFor="question">Poll Question</Label>
         <Input name="question" id="question" required />
       </div>
+      <div className="pt-4">
+        <Label htmlFor="expires_at">Expiration Date (Optional)</Label>
+        <Input name="expires_at" id="expires_at" type="datetime-local" />
+      </div>
       <div>
         <Label>Options</Label>
         {options.map((opt, idx) => (
