@@ -26,13 +26,24 @@ const PUBLIC_ROUTES = [
   '/polls' // Public poll viewing
 ];
 
-// Check if a path matches any pattern in the array
-function matchesRoute(pathname: string, routes: string[]): boolean {
-  return routes.some(route => {
-    if (route.endsWith('*')) {
-      return pathname.startsWith(route.slice(0, -1));
+/**
+ * Checks if a pathname matches any of the provided route patterns.
+ * Supports exact matches and wildcard patterns (ending with '*').
+ * 
+ * @param pathname - The pathname to check
+ * @param routes - Array of route patterns to match against
+ * @returns true if pathname matches any route pattern
+ */
+function isPathMatchingRoutes(pathname: string, routes: readonly string[]): boolean {
+  return routes.some(routePattern => {
+    // Handle wildcard patterns (e.g., '/api/*')
+    if (routePattern.endsWith('*')) {
+      const baseRoute = routePattern.slice(0, -1);
+      return pathname.startsWith(baseRoute);
     }
-    return pathname === route || pathname.startsWith(route + '/');
+    
+    // Handle exact matches and sub-routes
+    return pathname === routePattern || pathname.startsWith(`${routePattern}/`);
   });
 }
 
@@ -103,7 +114,7 @@ export async function updateSession(request: NextRequest) {
     // Handle authentication errors
     if (authError) {
       console.error('Authentication error in middleware:', authError);
-      if (!matchesRoute(pathname, PUBLIC_ROUTES)) {
+      if (!isPathMatchingRoutes(pathname, PUBLIC_ROUTES)) {
         const url = request.nextUrl.clone();
         url.pathname = '/login';
         url.searchParams.set('redirectTo', pathname);
@@ -112,8 +123,8 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Check if route requires authentication
-    const isProtectedRoute = matchesRoute(pathname, PROTECTED_ROUTES);
-    const isPublicRoute = matchesRoute(pathname, PUBLIC_ROUTES);
+    const isProtectedRoute = isPathMatchingRoutes(pathname, PROTECTED_ROUTES);
+    const isPublicRoute = isPathMatchingRoutes(pathname, PUBLIC_ROUTES);
     
     // If user is not authenticated and trying to access protected route
     if (!user && isProtectedRoute) {
@@ -131,7 +142,7 @@ export async function updateSession(request: NextRequest) {
     }
 
     // Check admin routes
-    if (user && matchesRoute(pathname, ADMIN_ROUTES)) {
+    if (user && isPathMatchingRoutes(pathname, ADMIN_ROUTES)) {
       const userRole = await getUserRole(supabase, user.id);
       
       if (userRole !== 'admin') {
@@ -158,7 +169,7 @@ export async function updateSession(request: NextRequest) {
     console.error('Middleware error:', error);
     
     // On error, redirect to login for protected routes
-    if (matchesRoute(pathname, PROTECTED_ROUTES)) {
+    if (isPathMatchingRoutes(pathname, PROTECTED_ROUTES)) {
       const url = request.nextUrl.clone();
       url.pathname = '/login';
       url.searchParams.set('error', 'session_error');
