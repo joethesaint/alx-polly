@@ -1,6 +1,3 @@
-"use client";
-
-import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -9,121 +6,157 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { deletePoll } from "@/app/lib/actions/poll-actions";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
+import { requireAdmin, getAllUserProfiles } from "@/lib/rbac";
+import { redirect } from "next/navigation";
+import { AdminDeleteButton } from "./AdminDeleteButton";
 
 interface Poll {
   id: string;
   question: string;
   user_id: string;
   created_at: string;
+  updated_at?: string;
   options: string[];
+  vote_count?: number;
 }
 
-export default function AdminPage() {
-  const [polls, setPolls] = useState<Poll[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
+interface UserProfile {
+  id: string;
+  email?: string;
+  role: string;
+}
 
-  useEffect(() => {
-    fetchAllPolls();
-  }, []);
-
-  const fetchAllPolls = async () => {
-    const supabase = createClient();
-
-    const { data, error } = await supabase
-      .from("polls")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error && data) {
-      setPolls(data);
-    }
-    setLoading(false);
-  };
-
-  const handleDelete = async (pollId: string) => {
-    setDeleteLoading(pollId);
-    const result = await deletePoll(pollId);
-
-    if (!result.error) {
-      setPolls(polls.filter((poll) => poll.id !== pollId));
-    }
-
-    setDeleteLoading(null);
-  };
-
-  if (loading) {
-    return <div className="p-6">Loading all polls...</div>;
+export default async function AdminPage() {
+  try {
+    // Require admin access - this will redirect if not admin
+    await requireAdmin();
+  } catch (error) {
+    redirect('/unauthorized');
   }
+
+  const supabase = await createClient();
+
+  // Fetch all polls with vote counts and user information
+  const { data: polls, error: pollsError } = await supabase
+    .from("polls")
+    .select(`
+      *,
+      votes(count)
+    `)
+    .order("created_at", { ascending: false });
+
+  if (pollsError) {
+    console.error("Error fetching polls:", pollsError);
+    return (
+      <div className="p-6">
+        <Alert variant="destructive">
+          <AlertDescription>
+            Error loading polls: {pollsError.message}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Get user profiles for displaying user information
+  const userProfiles = await getAllUserProfiles();
+  const userProfileMap = new Map(userProfiles.map(profile => [profile.id, profile]));
+
+  // Process polls to include vote counts
+  const processedPolls: (Poll & { vote_count: number })[] = polls?.map(poll => ({
+    ...poll,
+    vote_count: Array.isArray(poll.votes) ? poll.votes.length : 0
+  })) || [];
 
   return (
     <div className="p-6 space-y-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Admin Panel</h1>
+        <h1 className="text-2xl font-bold text-red-600">🔒 Admin Panel</h1>
         <p className="text-gray-600 mt-2">
-          View and manage all polls in the system.
+          Secure administrative access to view and manage all polls in the system.
         </p>
+        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-sm text-yellow-800">
+            <strong>Security Notice:</strong> This panel provides administrative access to all polls. 
+            All actions are logged for security auditing.
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4">
-        {polls.map((poll) => (
-          <Card key={poll.id} className="border-l-4 border-l-blue-500">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="text-lg">{poll.question}</CardTitle>
-                  <CardDescription>
-                    <div className="space-y-1 mt-2">
-                      <div>
-                        Poll ID:{" "}
-                        <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
-                          {poll.id}
-                        </code>
-                      </div>
-                      <div>
-                        Owner ID:{" "}
-                        <code className="bg-gray-100 px-2 py-1 rounded text-sm font-mono">
-                          {poll.user_id}
-                        </code>
-                      </div>
-                      <div>
-                        Created:{" "}
-                        {new Date(poll.created_at).toLocaleDateString()}
-                      </div>
+        {processedPolls.map((poll) => {
+          const userProfile = userProfileMap.get(poll.user_id);
+          return (
+            <Card key={poll.id} className="border-l-4 border-l-red-500">
+              <CardHeader>
+                <div className="flex justify-between items-start">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2">
+                      <CardTitle className="text-lg">{poll.question}</CardTitle>
+                      <Badge variant="secondary">
+                        {poll.vote_count} vote{poll.vote_count !== 1 ? 's' : ''}
+                      </Badge>
                     </div>
-                  </CardDescription>
+                    <CardDescription>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                        <div>
+                          <strong>Poll ID:</strong>{" "}
+                          <code className="bg-gray-100 px-2 py-1 rounded text-xs font-mono">
+                            {poll.id.substring(0, 8)}...
+                          </code>
+                        </div>
+                        <div>
+                          <strong>Owner:</strong>{" "}
+                          <span className="text-sm">
+                            {userProfile?.email || 'Unknown User'}
+                          </span>
+                          {userProfile?.role && (
+                            <Badge variant="outline" className="ml-2 text-xs">
+                              {userProfile.role}
+                            </Badge>
+                          )}
+                        </div>
+                        <div>
+                          <strong>Created:</strong>{" "}
+                          {new Date(poll.created_at).toLocaleDateString()}
+                        </div>
+                        {poll.updated_at && poll.updated_at !== poll.created_at && (
+                          <div>
+                            <strong>Updated:</strong>{" "}
+                            {new Date(poll.updated_at).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    </CardDescription>
+                  </div>
+                  <AdminDeleteButton pollId={poll.id} />
                 </div>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => handleDelete(poll.id)}
-                  disabled={deleteLoading === poll.id}
-                >
-                  {deleteLoading === poll.id ? "Deleting..." : "Delete"}
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <h4 className="font-medium">Options:</h4>
-                <ul className="list-disc list-inside space-y-1">
-                  {poll.options.map((option, index) => (
-                    <li key={index} className="text-gray-700">
-                      {option}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  <h4 className="font-medium">Poll Options:</h4>
+                  <ul className="list-disc list-inside space-y-1">
+                    {poll.options.map((option, index) => (
+                      <li key={index} className="text-gray-700">
+                        {option}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
-      {polls.length === 0 && (
+      {processedPolls.length === 0 && (
         <div className="text-center py-8 text-gray-500">
-          No polls found in the system.
+          <p>No polls found in the system.</p>
+          <p className="text-sm mt-2">All polls will appear here for administrative review.</p>
         </div>
       )}
     </div>
