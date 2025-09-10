@@ -29,7 +29,21 @@ const registerSchema = z.object({
   password: passwordSchema
 });
 
-// Rate limiting helper
+/**
+ * Enforces a simple sliding window rate limit for an identifier using an in-memory map.
+ *
+ * Uses the provided `attempts` map to track counts and timestamps. If no prior record
+ * exists or the time window has elapsed, the count is reset and the attempt is allowed.
+ * Otherwise the count is incremented and the attempt is allowed until `maxAttempts`
+ * within `windowMs` is reached.
+ *
+ * Mutates the `attempts` map by creating, resetting, or updating the entry for `identifier`.
+ *
+ * @param identifier - Key used to track attempts (e.g., user email or IP)
+ * @param maxAttempts - Maximum allowed attempts within the time window (default: 5)
+ * @param windowMs - Time window in milliseconds for rate limiting (default: 15 minutes)
+ * @returns True if the attempt is permitted; false if the rate limit has been exceeded.
+ */
 function checkRateLimit(attempts: Map<string, { count: number; lastAttempt: number }>, identifier: string, maxAttempts: number = 5, windowMs: number = 15 * 60 * 1000): boolean {
   const now = Date.now();
   const userAttempts = attempts.get(identifier);
@@ -56,11 +70,29 @@ function checkRateLimit(attempts: Map<string, { count: number; lastAttempt: numb
   return true;
 }
 
-// Clear successful attempts
+/**
+ * Remove the rate-limit entry for an identifier, resetting its attempt state.
+ *
+ * Clears the provided `attempts` map entry for `identifier` (if present), typically used after
+ * a successful authentication or registration to reset the per-identifier failure count and timestamp.
+ *
+ * @param attempts - Map tracking attempt metadata keyed by identifier (e.g., email)
+ * @param identifier - The key whose rate-limit entry should be cleared
+ */
 function clearRateLimit(attempts: Map<string, { count: number; lastAttempt: number }>, identifier: string): void {
   attempts.delete(identifier);
 }
 
+/**
+ * Authenticate a user with email and password.
+ *
+ * Validates the provided credentials, enforces a per-email rate limit (5 attempts per 15 minutes),
+ * attempts sign-in with Supabase, records audit-log events for validation failures, rate-limit hits,
+ * failures, successes, and unexpected errors, and clears the rate limit on successful authentication.
+ *
+ * @param data - Login payload; must include `email` and `password`.
+ * @returns An object with `error` set to `null` on success or a user-facing error message on failure.
+ */
 export async function login(data: LoginFormData) {
   try {
     // Validate input
@@ -105,6 +137,26 @@ export async function login(data: LoginFormData) {
   }
 }
 
+/**
+ * Register a new user with email, password, and name.
+ *
+ * Validates input against the register schema, enforces per-email rate limiting
+ * (3 attempts per hour), creates a Supabase user (including `name` in user metadata),
+ * and records audit logs for validation failures, rate limiting, failures, successes,
+ * and unexpected errors.
+ *
+ * On validation failure or when rate limited, returns an object with `error` set
+ * to a user-facing message. On successful registration returns `{ error: null }`.
+ *
+ * Side effects:
+ * - Calls Supabase to create the user.
+ * - Writes audit logs via `auditLog`.
+ * - Updates the in-memory rate-limit store and clears it on success.
+ *
+ * @param data - Registration data containing `name`, `email`, and `password`.
+ * @returns An object `{ error: string | null }` where `error` is null on success or
+ *          contains a human-readable error message on failure.
+ */
 export async function register(data: RegisterFormData) {
   try {
     // Validate input
@@ -154,6 +206,15 @@ export async function register(data: RegisterFormData) {
   }
 }
 
+/**
+ * Signs out the current user and records audit logs for success or failure.
+ *
+ * Retrieves the current authenticated user to capture their id and email for auditing, then calls Supabase to sign out.
+ * On sign-out failure the function logs a `logout_failed` audit event with the user id/email and returns `{ error: string }`.
+ * On success it logs `logout_success` and returns `{ error: null }`.
+ *
+ * @returns An object with an `error` field: `null` when logout succeeded, or a string error message when it failed.
+ */
 export async function logout() {
   try {
     const supabase = await createClient();
@@ -180,6 +241,11 @@ export async function logout() {
   }
 }
 
+/**
+ * Retrieves the currently authenticated user from Supabase.
+ *
+ * @returns The authenticated user object, or `null` if there is no signed-in user.
+ */
 export async function getCurrentUser() {
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();

@@ -6,6 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
+/**
+ * Form component for editing an existing poll's question and options.
+ *
+ * Renders controlled inputs initialized from `poll`, allows adding/removing options
+ * (enforces a minimum of two), and submits updates via `updatePoll`. On success
+ * displays a confirmation and redirects to `/polls` after ~1.2s.
+ *
+ * @param poll - Poll object with at least `{ id: string, question: string, options?: string[] }`
+ * @returns The edit poll form React element.
+ */
 export default function EditPollForm({ poll }: { poll: any }) {
   const [question, setQuestion] = useState(poll.question);
   const [options, setOptions] = useState<string[]>(poll.options || []);

@@ -21,6 +21,16 @@ interface AdminDeleteButtonProps {
   pollId: string;
 }
 
+/**
+ * Renders a confirmation button and dialog to delete a poll by ID.
+ *
+ * Shows an AlertDialog that requires explicit confirmation before deleting the poll.
+ * While the deletion is in progress the trigger and dialog actions are disabled and display a loading label.
+ * On confirmation this component calls the backend deletion action, shows success or error toasts, closes the dialog on success, and refreshes the current page.
+ *
+ * @param pollId - The poll's unique identifier (string). The dialog displays a truncated form of this ID for reference.
+ * @returns A JSX element containing the delete button and confirmation dialog.
+ */
 export function AdminDeleteButton({ pollId }: AdminDeleteButtonProps) {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isOpen, setIsOpen] = useState(false);

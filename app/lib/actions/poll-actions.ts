@@ -55,43 +55,29 @@ const voteSchema = z.object({
 });
 
 /**
- * Input Sanitization Function
- * 
- * Sanitizes user input to prevent XSS (Cross-Site Scripting) attacks.
- * Removes all HTML tags and attributes from user-provided content.
- * 
- * @param input - Raw user input string
- * @returns Sanitized string safe for database storage and display
- * 
- * Security: Essential for preventing malicious script injection in poll content.
+ * Strip all HTML tags and attributes from a string to prevent XSS.
+ *
+ * Returns a plain string with any HTML removed, suitable for safe storage and display.
+ *
+ * @param input - The raw user-provided string to sanitize
+ * @returns The sanitized string with no HTML tags or attributes
  */
 function sanitizeInput(input: string): string {
   return DOMPurify.sanitize(input, { ALLOWED_TAGS: [], ALLOWED_ATTR: [] });
 }
 
 /**
- * Create Poll Server Action
- * 
- * Creates a new poll with comprehensive validation, sanitization, and security measures.
- * Requires user authentication and implements rate limiting to prevent spam.
- * 
- * @param formData - FormData containing poll question and options
- * @returns Promise<{error: string | null, pollId?: string}> - Success/error response with poll ID
- * 
- * Security features:
- * - Authentication requirement via requireAuth()
- * - Input validation using Zod schema
- * - XSS prevention through input sanitization
- * - Rate limiting (5 polls per minute per user)
- * - Comprehensive audit logging
- * 
- * Flow:
- * 1. Authenticate user and extract form data
- * 2. Validate input format and constraints
- * 3. Sanitize all user inputs to prevent XSS
- * 4. Check rate limiting to prevent spam
- * 5. Create poll in database with sanitized data
- * 6. Log creation event and return poll ID
+ * Create a new poll for the authenticated user.
+ *
+ * Validates and sanitizes form input, enforces a per-user rate limit (max 5 polls per minute),
+ * ensures an optional `expires_at` is a future date, inserts the poll into the database,
+ * records audit logs, and revalidates the polls listing on success.
+ *
+ * @param formData - FormData with keys:
+ *   - "question": string
+ *   - "options": one or more option strings (repeated)
+ *   - "expires_at" (optional): a date string parseable by Date
+ * @returns A promise resolving to an object with `error` (null on success) and `pollId` when created.
  */
 export async function createPoll(formData: FormData) {
   try {
@@ -182,21 +168,11 @@ export async function createPoll(formData: FormData) {
 }
 
 /**
- * Get User Polls Server Action
- * 
- * Retrieves all polls created by the currently authenticated user.
- * Returns polls in descending order by creation date (newest first).
- * 
- * @returns Promise<{polls: Poll[], error: string | null}> - User's polls or error
- * 
- * Features:
- * - Authentication check before data retrieval
- * - Ordered results for better user experience
- * - Proper error handling and user feedback
- * 
- * Used in:
- * - User dashboard to display created polls
- * - Poll management interfaces
+ * Fetches polls created by the currently authenticated user, ordered newest-first.
+ *
+ * If the caller is not authenticated the function returns `{ polls: [], error: "Not authenticated" }`.
+ *
+ * @returns An object containing `polls` (array of Poll) and `error` (string | null). On success `error` is `null`.
  */
 export async function getUserPolls() {
   const supabase = await createClient();
@@ -219,23 +195,12 @@ export async function getUserPolls() {
 }
 
 /**
- * Get Poll By ID Server Action
- * 
- * Retrieves a specific poll by its unique identifier.
- * Used for displaying individual poll details and voting interfaces.
- * 
- * @param id - Unique poll identifier (UUID)
- * @returns Promise<{poll: Poll | null, error: string | null}> - Poll data or error
- * 
- * Features:
- * - Public access (no authentication required for viewing)
- * - Single poll retrieval for efficient data fetching
- * - Proper error handling for non-existent polls
- * 
- * Used in:
- * - Poll viewing pages
- * - Voting interfaces
- * - Poll sharing via direct links
+ * Retrieve a poll by its UUID.
+ *
+ * Returns the poll record if found; otherwise returns `poll: null` and an `error` message.
+ *
+ * @param id - Poll UUID
+ * @returns An object with `poll` (Poll | null) and `error` (string | null)
  */
 export async function getPollById(id: string) {
   const supabase = await createClient();
@@ -397,40 +362,14 @@ export async function submitVote(pollId: string, optionIndex: number) {
 
 // DELETE POLL
 /**
- * Delete Poll Server Action
- * 
- * Permanently removes a poll from the system with proper authorization checks.
- * Only poll owners and administrators can delete polls.
- * 
- * @param id - UUID of the poll to delete
- * @returns Promise<{error: string | null}> - Success/error response
- * 
- * Security features:
- * - Authentication required (no anonymous deletions)
- * - UUID format validation
- * - Poll existence verification
- * - Authorization checks (owner or admin only)
- * - Comprehensive audit logging for security monitoring
- * - Unauthorized attempt tracking
- * 
- * Authorization rules:
- * - Poll owners can delete their own polls
- * - Administrators can delete any poll (logged separately)
- * - All deletion attempts are audited for security
- * 
- * Database effects:
- * - Cascading deletion removes associated votes
- * - Poll data is permanently removed (no soft delete)
- * - Related cache entries are invalidated
- * 
- * Flow:
- * 1. Authenticate user
- * 2. Validate poll ID format
- * 3. Verify poll exists and get ownership info
- * 4. Check authorization (owner or admin)
- * 5. Delete poll from database
- * 6. Log deletion activity
- * 7. Revalidate affected pages
+ * Permanently deletes a poll by ID if the caller is the poll owner or an administrator.
+ *
+ * Validates the poll ID (UUID), requires authentication, verifies existence and ownership,
+ * performs the deletion (cascades to votes), records audit events for success/failure/unauthorized attempts,
+ * and revalidates cache paths affected by the change.
+ *
+ * @param id - The poll's UUID
+ * @returns An object with `error` set to null on success or an error message on failure
  */
 export async function deletePoll(id: string) {
   try {
@@ -502,47 +441,16 @@ export async function deletePoll(id: string) {
 }
 
 /**
- * Update Poll Server Action
- * 
- * Modifies an existing poll's question and options with strict validation and authorization.
- * Updates are only allowed for polls without votes to maintain data integrity.
- * 
- * @param id - UUID of the poll to update
- * @param question - New poll question (1-500 characters)
- * @param options - Array of new poll options (2-10 options, max 200 chars each)
- * @returns Promise<{error: string | null}> - Success/error response
- * 
- * Security features:
- * - Authentication required (no anonymous updates)
- * - Input validation using Zod schema
- * - XSS protection via input sanitization
- * - UUID format validation
- * - Authorization checks (owner or admin only)
- * - Vote existence check to prevent data corruption
- * - Comprehensive audit logging
- * 
- * Business rules:
- * - Only poll owners and admins can update polls
- * - Polls with existing votes cannot be modified
- * - All inputs are sanitized to prevent XSS attacks
- * - Updates are tracked with before/after values
- * 
- * Data integrity:
- * - Prevents modification of polls with votes
- * - Maintains referential integrity
- * - Updates timestamp for change tracking
- * - Invalidates relevant cached pages
- * 
- * Flow:
- * 1. Authenticate user
- * 2. Validate input format and content
- * 3. Sanitize inputs for security
- * 4. Verify poll exists and get ownership info
- * 5. Check authorization (owner or admin)
- * 6. Ensure no votes exist (data integrity)
- * 7. Update poll in database
- * 8. Log update activity
- * 9. Revalidate affected pages
+ * Update an existing poll's question and options.
+ *
+ * Performs validation, sanitization, and authorization; only the poll owner or an admin may update a poll,
+ * and polls that already have votes cannot be modified. On success the poll record is updated and related
+ * cached pages are revalidated; audit entries are written for important events.
+ *
+ * @param id - Poll UUID to update
+ * @param question - New poll question (validated and sanitized; 1–500 characters)
+ * @param options - New poll options (validated and sanitized; 2–10 items, each up to 200 characters)
+ * @returns An object with `error` set to null on success or a string message describing the failure.
  */
 export async function updatePoll(id: string, question: string, options: string[]) {
   try {

@@ -11,6 +11,16 @@ import { register } from '@/app/lib/actions/auth-actions';
 import PasswordStrengthIndicator from '@/app/components/PasswordStrengthIndicator';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 
+/**
+ * Renders the client-side registration form and handles user sign-up.
+ *
+ * The component provides controlled password inputs with client-side mismatch validation,
+ * displays success and error alerts returned from the registration action, and disables
+ * form inputs while a submission is in progress. On successful registration it shows a
+ * success message and navigates to `/login` after a short delay.
+ *
+ * @returns The registration page JSX.
+ */
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);

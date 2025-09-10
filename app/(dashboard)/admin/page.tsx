@@ -30,6 +30,19 @@ interface UserProfile {
   role: string;
 }
 
+/**
+ * Server-rendered Admin page that displays all polls with metadata and management controls.
+ *
+ * Renders a secured admin panel: enforces admin access, fetches polls (including vote counts)
+ * and user profiles, and shows a card for each poll with vote count, owner info, timestamps,
+ * options, and an admin delete control. If fetching polls fails an error alert is rendered.
+ *
+ * Side effects:
+ * - Calls `requireAdmin()` and will redirect to `/unauthorized` if the current user is not an admin.
+ * - Logs poll-fetching errors to the server console.
+ *
+ * @returns Server-rendered JSX for the admin polls listing.
+ */
 export default async function AdminPage() {
   try {
     // Require admin access - this will redirect if not admin

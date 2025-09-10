@@ -14,6 +14,17 @@ interface PasswordRequirement {
   met: boolean;
 }
 
+/**
+ * Renders a password strength indicator with a progress bar and a list of requirements.
+ *
+ * Evaluates five built-in requirements (length, uppercase, lowercase, number, special character)
+ * and updates their satisfied state as `password` changes. If `password` is falsy, the component
+ * returns `null` and renders nothing.
+ *
+ * @param password - The current password to evaluate.
+ * @param className - Optional additional CSS classes applied to the outer container.
+ * @returns A React element showing strength and requirement status, or `null` when `password` is empty.
+ */
 export function PasswordStrengthIndicator({ password, className = '' }: PasswordStrengthIndicatorProps) {
   const [requirements, setRequirements] = useState<PasswordRequirement[]>([
     {

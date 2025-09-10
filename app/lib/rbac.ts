@@ -51,7 +51,11 @@ export const getCurrentUserProfile = cache(async (): Promise<UserProfile | null>
 });
 
 /**
- * Check if the current user has admin role
+ * Returns whether the current authenticated user has the 'admin' role.
+ *
+ * If there is no authenticated user or no profile, this returns `false`.
+ *
+ * @returns `true` when the current user's role is `'admin'`; otherwise `false`.
  */
 export async function isAdmin(): Promise<boolean> {
   const profile = await getCurrentUserProfile();
@@ -59,7 +63,9 @@ export async function isAdmin(): Promise<boolean> {
 }
 
 /**
- * Check if the current user has moderator or admin role
+ * Determine whether the current user has moderator or admin privileges.
+ *
+ * @returns `true` if the current user's profile role is `'moderator'` or `'admin'`; otherwise `false`.
  */
 export async function isModerator(): Promise<boolean> {
   const profile = await getCurrentUserProfile();
@@ -67,7 +73,13 @@ export async function isModerator(): Promise<boolean> {
 }
 
 /**
- * Check if the current user has a specific role
+ * Return true if the current authenticated user's profile has the specified role.
+ *
+ * Retrieves the current user's profile and compares its `role` to the provided `role`.
+ * Returns `false` if there is no authenticated profile or the roles do not match.
+ *
+ * @param role - The role to check against the current user's profile
+ * @returns `true` if the current user's role equals `role`, otherwise `false`
  */
 export async function hasRole(role: UserRole): Promise<boolean> {
   const profile = await getCurrentUserProfile();
@@ -75,7 +87,12 @@ export async function hasRole(role: UserRole): Promise<boolean> {
 }
 
 /**
- * Check if the current user has any of the specified roles
+ * Return true if the current authenticated user's role is included in `roles`.
+ *
+ * If there is no authenticated user or no profile, this returns false.
+ *
+ * @param roles - Roles to check membership against.
+ * @returns True when the current user's role matches any entry in `roles`; otherwise false.
  */
 export async function hasAnyRole(roles: UserRole[]): Promise<boolean> {
   const profile = await getCurrentUserProfile();
@@ -83,7 +100,12 @@ export async function hasAnyRole(roles: UserRole[]): Promise<boolean> {
 }
 
 /**
- * Get user profile by ID (admin only)
+ * Retrieve a user's profile by ID. Requires the caller to have the `admin` role.
+ *
+ * Throws an Error if the current user is not an admin.
+ *
+ * @param userId - The ID of the user whose profile to fetch.
+ * @returns The user's profile on success, or `null` if the profile could not be fetched.
  */
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
   const isUserAdmin = await isAdmin();
@@ -109,7 +131,15 @@ export async function getUserProfile(userId: string): Promise<UserProfile | null
 }
 
 /**
- * Update user role (admin only)
+ * Change a user's role in the user_profiles table (admin-only).
+ *
+ * Verifies the caller has admin privileges, updates the target user's `role`
+ * and `updated_at` timestamp in the database, and returns a success flag.
+ *
+ * @param userId - ID of the user whose role will be changed
+ * @param newRole - New role to assign to the user
+ * @returns An object with `success: true` on success, or `success: false` and
+ * an `error` message on failure (e.g. unauthorized or database error)
  */
 export async function updateUserRole(userId: string, newRole: UserRole): Promise<{ success: boolean; error?: string }> {
   const isUserAdmin = await isAdmin();
@@ -134,7 +164,15 @@ export async function updateUserRole(userId: string, newRole: UserRole): Promise
 }
 
 /**
- * Get all user profiles (admin only)
+ * Retrieve all user profiles, ordered by newest first.
+ *
+ * Throws an Error if the caller is not an admin.
+ *
+ * On success returns an array of UserProfile objects ordered by `created_at` descending.
+ * If a database fetch error occurs the function logs the error and returns an empty array.
+ *
+ * @returns An array of user profiles (empty array on fetch error)
+ * @throws Error - 'Unauthorized: Admin access required' when the caller is not an admin
  */
 export async function getAllUserProfiles(): Promise<UserProfile[]> {
   const isUserAdmin = await isAdmin();
@@ -159,7 +197,11 @@ export async function getAllUserProfiles(): Promise<UserProfile[]> {
 }
 
 /**
- * Authorization middleware for server actions
+ * Ensures a user is authenticated and returns their user ID.
+ *
+ * Throws an Error with message "Authentication required" if there is no authenticated user or if retrieving the user fails.
+ *
+ * @returns The authenticated user's ID.
  */
 export async function requireAuth(): Promise<string> {
   const supabase = await createClient();
@@ -173,7 +215,10 @@ export async function requireAuth(): Promise<string> {
 }
 
 /**
- * Authorization middleware for admin actions
+ * Ensures the caller is authenticated and has admin privileges.
+ *
+ * @returns The authenticated user's ID.
+ * @throws Error Throws 'Admin access required' when the current user is not an admin.
  */
 export async function requireAdmin(): Promise<string> {
   const userId = await requireAuth();
@@ -187,7 +232,13 @@ export async function requireAdmin(): Promise<string> {
 }
 
 /**
- * Authorization middleware for moderator actions
+ * Ensure the caller is authenticated and has moderator privileges, and return their user ID.
+ *
+ * Calls requireAuth() to verify authentication and isModerator() to verify role membership.
+ *
+ * @returns The authenticated user's ID.
+ * @throws `Authentication required` if the caller is not authenticated.
+ * @throws `Moderator access required` if the authenticated user is not a moderator.
  */
 export async function requireModerator(): Promise<string> {
   const userId = await requireAuth();
@@ -201,7 +252,12 @@ export async function requireModerator(): Promise<string> {
 }
 
 /**
- * Check if user can access resource (owner or admin)
+ * Determine whether the current user is allowed to access a resource owned by `resourceUserId`.
+ *
+ * Returns true if the current user is the resource owner or has the 'admin' role; otherwise false.
+ *
+ * @param resourceUserId - ID of the resource owner to check against the current user
+ * @returns True when access is allowed, false otherwise (also false on errors or if no authenticated user)
  */
 export async function canAccessResource(resourceUserId: string): Promise<boolean> {
   try {
@@ -220,7 +276,15 @@ export async function canAccessResource(resourceUserId: string): Promise<boolean
 }
 
 /**
- * Audit log for security-sensitive operations
+ * Record a security-relevant audit entry for the current user.
+ *
+ * Attempts to capture who performed `action` along with optional structured `details`.
+ * Currently the entry is written to the server console (placeholder) and a TODO remains
+ * to store audit entries in a persistent audit log table. If available, include request
+ * metadata (e.g., ip, userAgent) in `details` since this function does not extract them.
+ *
+ * @param action - A short identifier or description of the action being audited.
+ * @param details - Optional structured metadata about the action (defaults to an empty object).
  */
 export async function auditLog(action: string, details: Record<string, any> = {}): Promise<void> {
   try {
