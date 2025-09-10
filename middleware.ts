@@ -2,11 +2,13 @@ import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
 
 /**
- * Middleware function that handles session management and authentication
- * for protected routes in the application.
- * 
- * @param request - The incoming Next.js request object
- * @returns Promise<NextResponse> - The response with updated session
+ * Middleware that ensures the incoming request has an updated session for protected routes.
+ *
+ * Delegates session handling to `updateSession(request)`. If `updateSession` succeeds,
+ * its resulting `NextResponse` is returned; on error, the middleware logs the error
+ * and returns `NextResponse.next()` as a safe fallback.
+ *
+ * @returns The `NextResponse` produced by `updateSession` or `NextResponse.next()` on error.
  */
 export async function middleware(request: NextRequest): Promise<NextResponse> {
   try {

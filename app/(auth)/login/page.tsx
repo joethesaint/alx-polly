@@ -11,6 +11,20 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, Info } from 'lucide-react';
 import { login } from '@/app/lib/actions/auth-actions';
 
+/**
+ * Login page component for ALX Polly.
+ *
+ * Renders a login form, shows an informational alert when redirected from a protected page
+ * and a session/error alert when present in the query string, and handles authentication.
+ *
+ * On submit it calls the `login` action with the provided email and password, displays any
+ * returned error, and on success performs a full page navigation to the original destination
+ * (query param `redirectTo`) or to `/polls` to ensure the authenticated session is picked up.
+ *
+ * Displays a loading state that disables inputs and the submit button while the request is in progress.
+ *
+ * @returns The login page JSX.
+ */
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

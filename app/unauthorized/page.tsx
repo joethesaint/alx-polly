@@ -10,6 +10,16 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import Link from "next/link";
 import { ShieldX, Home, ArrowLeft } from "lucide-react";
 
+/**
+ * Renders a full-page "Access Denied" UI for unauthorized users.
+ *
+ * Displays a red-themed card with a title, descriptive subtitle, a destructive alert
+ * explaining the lack of permissions, a short list of possible reasons, and two
+ * action buttons: "Go Home" and "Sign In". Includes a small footer note indicating
+ * the incident was logged. This component is static and intended for the /unauthorized route.
+ *
+ * @returns A React element containing the unauthorized access page layout.
+ */
 export default function UnauthorizedPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">

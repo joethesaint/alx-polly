@@ -6,6 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+/**
+ * Renders a poll creation form and handles client-side state and submission.
+ *
+ * The form collects a question, optional expiration datetime, and a dynamic list of options
+ * (minimum two). Users can add or remove options; removal is prevented when only two remain.
+ * On submit the form data is passed to an async action (createPoll). If creation succeeds the
+ * component shows a success message and redirects to "/polls" after ~1.2s; on failure it displays
+ * the returned error message.
+ *
+ * @returns The PollCreateForm React element.
+ */
 export default function PollCreateForm() {
   const [options, setOptions] = useState(["", ""]);
   const [error, setError] = useState<string | null>(null);

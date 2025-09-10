@@ -5,7 +5,20 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { getPollById, submitVote } from '@/app/lib/actions/poll-actions';
-import { Poll } from '@/app/lib/types'; // Assuming you have a Poll type defined
+import { Poll } from '@/app/lib/types'; /**
+ * Renders a poll details page for the poll identified by `params.id`, allowing users to view the question, select an option, and submit a vote.
+ *
+ * This client-side React component:
+ * - Fetches poll data via `getPollById(params.id)` on mount / when `params.id` changes.
+ * - Shows loading and error states while fetching.
+ * - Displays poll options for voting unless the poll is expired or a vote has been cast, in which case a results placeholder is shown.
+ * - Submits votes via `submitVote(poll.id, selectedOption)`, refreshes the poll on success, and marks that results should be shown.
+ *
+ * Note: Detailed result calculation/display is not implemented in this version.
+ *
+ * @param params - Route params containing the poll `id`.
+ * @returns A React element rendering the poll detail UI.
+ */
 
 export default function PollDetailPage({ params }: { params: { id: string } }) {
   const [poll, setPoll] = useState<Poll | null>(null);
