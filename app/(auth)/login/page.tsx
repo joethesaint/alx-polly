@@ -1,16 +1,34 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, Info } from 'lucide-react';
 import { login } from '@/app/lib/actions/auth-actions';
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [redirectMessage, setRedirectMessage] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  
+  useEffect(() => {
+    const redirectTo = searchParams.get('redirectTo');
+    const sessionError = searchParams.get('error');
+    
+    if (redirectTo) {
+      setRedirectMessage(`Please log in to access ${redirectTo}`);
+    }
+    
+    if (sessionError === 'session_error') {
+      setError('Your session has expired. Please log in again.');
+    }
+  }, [searchParams]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -27,7 +45,9 @@ export default function LoginPage() {
       setError(result.error);
       setLoading(false);
     } else {
-      window.location.href = '/polls'; // Full reload to pick up session
+      // Redirect to the original destination or default to polls
+      const redirectTo = searchParams.get('redirectTo') || '/polls';
+      window.location.href = redirectTo; // Full reload to pick up session
     }
   };
 
@@ -39,6 +59,24 @@ export default function LoginPage() {
           <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
         </CardHeader>
         <CardContent>
+          {redirectMessage && (
+            <Alert className="mb-4 border-blue-200 bg-blue-50">
+              <Info className="h-4 w-4 text-blue-600" />
+              <AlertDescription className="text-blue-700">
+                {redirectMessage}
+              </AlertDescription>
+            </Alert>
+          )}
+          
+          {error && (
+            <Alert className="mb-4 border-red-200 bg-red-50">
+              <AlertCircle className="h-4 w-4 text-red-600" />
+              <AlertDescription className="text-red-700">
+                {error}
+              </AlertDescription>
+            </Alert>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
@@ -49,6 +87,7 @@ export default function LoginPage() {
                 placeholder="your@email.com" 
                 required
                 autoComplete="email"
+                disabled={loading}
               />
             </div>
             <div className="space-y-2">
@@ -59,11 +98,11 @@ export default function LoginPage() {
                 type="password" 
                 required
                 autoComplete="current-password"
+                disabled={loading}
               />
             </div>
-            {error && <p className="text-red-500 text-sm">{error}</p>}
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Logging in...' : 'Login'}
+              {loading ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>
         </CardContent>
